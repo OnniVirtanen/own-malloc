@@ -2,8 +2,8 @@
 #include <stddef.h>
 #include <sys/mman.h>
 
-#define TRUE 1
 #define FALSE 0
+#define TRUE 1
 
 typedef struct {
     size_t size;
@@ -40,7 +40,10 @@ heap_block_t *request_space(size_t size) {
 
     block->size = total_size - sizeof(heap_block_t);
     block->next = NULL;
-    block->free = 0;
+    block->free = FALSE;
+
+
+    printf("block->size: %ld\n", block->size);
 
     return block;
 }
@@ -49,6 +52,24 @@ void *heap_allocate(size_t size) {
     if (size <= 0) {
         return NULL;
     }
+    
+    heap_block_t *block = find_free_block(size);
+    if (block) {
+        block->free = FALSE;
+	return (block + 1);
+    }
+
+    block = request_space(size);
+    if (!block) {
+        return NULL;
+    }
+
+    if (free_list) {
+        block->next = free_list;
+    }
+    free_list = block;
+
+    return (block + 1);
 }
 
 
@@ -57,5 +78,5 @@ void heap_free(void *ptr) {
         return;
     }
     heap_block_t *heap_block = (heap_block_t *)ptr - 1;
-    heap_block->free = 1;
+    heap_block->free = TRUE;
 }

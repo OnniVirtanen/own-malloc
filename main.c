@@ -7,5 +7,8 @@ int main() {
     printf("dereferenced p_int: %d\n", *p_int);
     printf("pointer p_int: %p\n", p_int);
     printf("size of p_int: %ld\n", sizeof(p_int));
+    
+    heap_free(p_int);
+
     return 0;
 }
