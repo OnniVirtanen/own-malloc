@@ -5,14 +5,13 @@
 
 typedef struct {
     struct heap_block_t *start;
-    size_t available_size;
+    size_t available_memory;
 } heap_t;
 
 typedef struct {
     size_t size;
     bool used;
     void *next;
-    void *previous;
 } heap_block_t ;
 
 void *heap_allocate(size_t size) {
