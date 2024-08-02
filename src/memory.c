@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <sys/mman.h>
+#include <assert.h>
 
 #define FALSE 0
 #define TRUE 1
@@ -25,14 +26,18 @@ heap_block_t *find_free_block(size_t size) {
 }
 
 heap_block_t *request_space(size_t size) {
+#ifdef DEBUG
+    printf("free_list is null at %d %d\n", __LINE__, free_list == NULL);
+#endif
     size_t total_size = size + sizeof(heap_block_t);
 
     if (total_size % getpagesize() != 0) {
         total_size += getpagesize() - (total_size % getpagesize());
     }
-
+#ifdef DEBUG
     printf("size: %ld\n", size);
     printf("total size: %ld\n", total_size);
+#endif
     heap_block_t *block = (heap_block_t *)mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
 
     if (block == MAP_FAILED) {
@@ -74,13 +79,14 @@ heap_block_t *request_space(size_t size) {
         block->next = NULL;
         block->free = FALSE;
     }
-
+#ifdef DEBUG
     printf("block->size: %ld\n", block->size);
     if (free_block != NULL) {
         printf("free block->size: %ld\n", free_block->size);
     }
 
-
+    printf("free_list %p\n", free_list);
+#endif
     return block;
 }
 
@@ -100,11 +106,6 @@ void *heap_allocate(size_t size) {
         return NULL;
     }
 
-    if (free_list) {
-        block->next = free_list;
-    }
-    free_list = block;
-
     return (block + 1);
 }
 
@@ -117,4 +118,11 @@ void heap_free(void *ptr) {
     heap_block->free = TRUE;
 
     // Handle defragmentation
+}
+
+void reset() {
+    free_list = NULL;
+#ifdef DEBUG
+    assert(free_list == NULL);
+#endif
 }
