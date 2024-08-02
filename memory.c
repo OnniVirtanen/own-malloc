@@ -32,18 +32,54 @@ heap_block_t *request_space(size_t size) {
     }
 
     printf("size: %ld\n", size);
+    printf("total size: %ld\n", total_size);
     heap_block_t *block = (heap_block_t *)mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
 
     if (block == MAP_FAILED) {
         return NULL;
     }
 
-    block->size = total_size - sizeof(heap_block_t);
-    block->next = NULL;
-    block->free = FALSE;
+    heap_block_t *free_block = NULL;
 
+    // Make a block that has size that user asked
+    int less_memory_than_pagesize = (size + sizeof(heap_block_t)) < total_size;
+    if (less_memory_than_pagesize) {
+        // Make two blocks
+        block->size = size + sizeof(heap_block_t);
+        block->next = NULL;
+        block->free = FALSE;
+
+        // Free block starts where the used block ends
+        free_block = block + block->size;
+        free_block->size = total_size - block->size;
+        free_block->next = NULL;
+        free_block->free = TRUE;
+
+        // Free list is empty
+        if (free_list == NULL) {
+            free_list = free_block;
+        } else {
+            // Loop to the end of free list
+            int i = 0;
+            while ((free_list + i)->next != NULL) {
+                i++;
+            }
+            // Append free block to the free list
+            (free_list + i)->next = free_block;
+        }
+
+    } else {
+        // Make one block containing all the memory
+        block->size = total_size - sizeof(heap_block_t);
+        block->next = NULL;
+        block->free = FALSE;
+    }
 
     printf("block->size: %ld\n", block->size);
+    if (free_block != NULL) {
+        printf("free block->size: %ld\n", free_block->size);
+    }
+
 
     return block;
 }
@@ -56,7 +92,7 @@ void *heap_allocate(size_t size) {
     heap_block_t *block = find_free_block(size);
     if (block) {
         block->free = FALSE;
-	return (block + 1);
+	    return (block + 1);
     }
 
     block = request_space(size);
@@ -79,4 +115,6 @@ void heap_free(void *ptr) {
     }
     heap_block_t *heap_block = (heap_block_t *)ptr - 1;
     heap_block->free = TRUE;
+
+    // Handle defragmentation
 }
