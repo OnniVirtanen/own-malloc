@@ -2,13 +2,11 @@
 #include <stddef.h>
 #include <sys/mman.h>
 #include <assert.h>
-
-#define FALSE 0
-#define TRUE 1
+#include <stdbool.h>
 
 typedef struct {
     size_t size;
-    int free;
+    bool free;
     void *next;
 } heap_block_t;
 
@@ -52,13 +50,13 @@ heap_block_t *request_space(size_t size) {
         // Make two blocks
         block->size = size + sizeof(heap_block_t);
         block->next = NULL;
-        block->free = FALSE;
+        block->free = false;
 
         // Free block starts where the used block ends
         free_block = block + block->size;
         free_block->size = total_size - block->size;
         free_block->next = NULL;
-        free_block->free = TRUE;
+        free_block->free = true;
 
         // Free list is empty
         if (free_list == NULL) {
@@ -77,7 +75,7 @@ heap_block_t *request_space(size_t size) {
         // Make one block containing all the memory
         block->size = total_size - sizeof(heap_block_t);
         block->next = NULL;
-        block->free = FALSE;
+        block->free = false;
     }
 #ifdef DEBUG
     printf("block->size: %ld\n", block->size);
@@ -97,7 +95,7 @@ void *heap_allocate(size_t size) {
     
     heap_block_t *block = find_free_block(size);
     if (block) {
-        block->free = FALSE;
+        block->free = false;
 	    return (block + 1);
     }
 
@@ -115,7 +113,7 @@ void heap_free(void *ptr) {
         return;
     }
     heap_block_t *heap_block = (heap_block_t *)ptr - 1;
-    heap_block->free = TRUE;
+    heap_block->free = true;
 
     // Handle defragmentation
 }
