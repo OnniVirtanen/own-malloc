@@ -3,6 +3,7 @@
 #include <sys/mman.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <unistd.h> 
 
 typedef struct {
     size_t size;
@@ -11,7 +12,7 @@ typedef struct {
 } heap_block_t;
 
 heap_block_t *free_list = NULL;
-heap_block_t *all_memory_list = NULL;
+heap_block_t *inuse_list = NULL;
 
 heap_block_t *find_free_block(size_t size) {
     heap_block_t *current = free_list;
@@ -43,10 +44,23 @@ heap_block_t *request_space(size_t size) {
         return NULL;
     }
 
+    // Append block to inuse list
+    if (inuse_list == NULL) {
+        inuse_list = block;
+    } else {
+        // increment inuse list
+        heap_block_t *current = inuse_list;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = block;
+        block->next = NULL;
+    }
+
     heap_block_t *free_block = NULL;
 
     // Make a block that has size that user asked
-    int less_memory_than_pagesize = (size + sizeof(heap_block_t)) < total_size;
+    bool less_memory_than_pagesize = (size + sizeof(heap_block_t)) < total_size;
     if (less_memory_than_pagesize) {
         // Make two blocks
         block->size = size + sizeof(heap_block_t);
@@ -64,12 +78,12 @@ heap_block_t *request_space(size_t size) {
             free_list = free_block;
         } else {
             // Loop to the end of free list
-            int i = 0;
-            while ((free_list + i)->next != NULL) {
-                i++;
+            heap_block_t *current = free_list;
+            while (current->next != NULL) {
+                current = current->next;
             }
             // Append free block to the free list
-            (free_list + i)->next = free_block;
+            current->next = free_block;
         }
 
     } else {
@@ -113,10 +127,30 @@ void heap_free(void *ptr) {
     if (!ptr) {
         return;
     }
-    heap_block_t *heap_block = (heap_block_t *)ptr - 1;
-    heap_block->free = true;
+    
+    heap_block_t *block = (heap_block_t *)ptr - sizeof(heap_block_t);
+    heap_block_t *current = inuse_list;
+    heap_block_t *previous = NULL;
 
-    // Handle defragmentation
+    // Traverse through the list and pop the block out and update linked list
+    while (current->next != NULL) {
+        if (current->next == block) {
+            if (block->next != NULL) {
+                previous->next = current->next;
+            } else {
+                previous->next = NULL;
+            }
+            break;
+        } else {
+            previous = current;
+            current = current->next;
+        }
+    }
+
+    // Handle munmap
+    munmap(block, sizeof(heap_block_t) + block->size);
+
+    // Handle defragmentation?
 }
 
 void munmap_list_of_memory(heap_block_t *list_of_memory) {
@@ -128,8 +162,8 @@ void munmap_list_of_memory(heap_block_t *list_of_memory) {
     }
     // unmap memory of every block in the list
     while (list_of_memory->next != NULL) {
-        munmap(list_of_memory, list_of_memory->size);
-        list_of_memory = (heap_block_t *)list_of_memory + 1;
+        munmap(list_of_memory, sizeof(heap_block_t) + list_of_memory->size);
+        list_of_memory = list_of_memory->next;
     }
 #ifdef DEBUG
     assert(list_of_memory != NULL);
@@ -138,10 +172,8 @@ void munmap_list_of_memory(heap_block_t *list_of_memory) {
 }
 
 void reset() {
+    munmap_list_of_memory(free_list);
+    munmap_list_of_memory(inuse_list);
     free_list = NULL;
-    all_memory_list = NULL;
-    munmap_list_of_memory(all_memory_list);
-#ifdef DEBUG
-    assert(free_list == NULL);
-#endif
+    inuse_list = NULL;
 }
