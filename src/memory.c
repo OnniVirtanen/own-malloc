@@ -11,6 +11,7 @@ typedef struct {
 } heap_block_t;
 
 heap_block_t *free_list = NULL;
+heap_block_t *all_memory_list = NULL;
 
 heap_block_t *find_free_block(size_t size) {
     heap_block_t *current = free_list;
@@ -118,8 +119,28 @@ void heap_free(void *ptr) {
     // Handle defragmentation
 }
 
+void munmap_list_of_memory(heap_block_t *list_of_memory) {
+    if (list_of_memory == NULL) {
+#ifdef DEBUG
+    printf("list_of_memory is null at line %d\n", __LINE__);
+#endif
+        return;
+    }
+    // unmap memory of every block in the list
+    while (list_of_memory->next != NULL) {
+        munmap(list_of_memory, list_of_memory->size);
+        list_of_memory = (heap_block_t *)list_of_memory + 1;
+    }
+#ifdef DEBUG
+    assert(list_of_memory != NULL);
+    assert(list_of_memory->next == NULL);
+#endif
+}
+
 void reset() {
     free_list = NULL;
+    all_memory_list = NULL;
+    munmap_list_of_memory(all_memory_list);
 #ifdef DEBUG
     assert(free_list == NULL);
 #endif
