@@ -2,6 +2,7 @@
 #define MEMORY_H
 
 #include <stddef.h>
+#include <stdbool.h>
 
 extern void *heap_allocate(size_t size);
 
@@ -12,7 +13,7 @@ extern void reset();
 
 extern struct {
     size_t size;
-    int free;
+    bool free;
     void *next;
 } heap_block_t;
 
